@@ -185,9 +185,8 @@ export class ProxyHandler implements ProxyService {
 
       log('Access token retrieved and bridge established. Ready.');
 
-      // Print "Ready" to stderr so user sees it even without debug flag
       if (!input.debug) {
-        console.error('[Proxy] Access token retrieved and bridge established. Ready.');
+        console.log('[Proxy] Access token retrieved and bridge established. Ready.');
       }
 
       // Keep alive
