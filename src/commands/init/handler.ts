@@ -8,7 +8,7 @@ import { type StitchService } from '../../services/stitch/spec.js';
 import { McpConfigHandler } from '../../services/mcp-config/handler.js';
 import { type McpConfigService } from '../../services/mcp-config/spec.js';
 import { createSpinner } from '../../ui/spinner.js';
-import { promptMcpClient, promptConfirm, promptTransportType } from '../../ui/wizard.js';
+import { promptMcpClient, promptConfirm, promptTransportType, type McpClient } from '../../ui/wizard.js';
 import { theme, icons } from '../../ui/theme.js';
 
 import fs from 'node:fs';
@@ -38,8 +38,15 @@ export class InitHandler implements InitCommand {
 
       // Step 1: MCP Client Selection
       console.log(theme.gray('Step 1: Select your MCP client\n'));
-      const mcpClient = await promptMcpClient();
-      console.log(theme.green(`${icons.success} Selected: ${mcpClient}\n`));
+
+      let mcpClient: McpClient;
+      if (input.client) {
+        mcpClient = this.resolveMcpClient(input.client);
+        console.log(theme.green(`${icons.success} Selected (via flag): ${mcpClient}\n`));
+      } else {
+        mcpClient = await promptMcpClient();
+        console.log(theme.green(`${icons.success} Selected: ${mcpClient}\n`));
+      }
 
       // Step 2: gcloud Installation
       console.log(theme.gray('Step 2: Setting up Google Cloud CLI\n'));
@@ -73,7 +80,7 @@ export class InitHandler implements InitCommand {
       console.log(theme.gray('Step 3: Authenticating with Google Cloud\n'));
       let activeAccount = await this.gcloudService.getActiveAccount();
       if (activeAccount) {
-        const continueWithActive = await promptConfirm(
+        const continueWithActive = input.defaults ? true : await promptConfirm(
           `You are already logged in as ${activeAccount}. Continue?`,
           true
         );
@@ -103,7 +110,7 @@ export class InitHandler implements InitCommand {
       console.log(theme.gray('Step 4: Authorizing application credentials\n'));
       let hasADC = await this.gcloudService.hasADC();
       if (hasADC) {
-        const useExistingADC = await promptConfirm(
+        const useExistingADC = input.defaults ? true : await promptConfirm(
           'Application Default Credentials (ADC) already exist. Use them?',
           true
         );
@@ -133,8 +140,15 @@ export class InitHandler implements InitCommand {
 
       // Step 5: Transport Selection
       console.log(theme.gray('Step 5: Choose connection method\n'));
-      const transport = await promptTransportType();
-      console.log(theme.green(`${icons.success} Selected: ${transport === 'http' ? 'Direct' : 'Proxy'}\n`));
+
+      let transport: 'http' | 'stdio';
+      if (input.transport) {
+        transport = this.resolveTransport(input.transport);
+        console.log(theme.green(`${icons.success} Selected (via flag): ${transport === 'http' ? 'Direct' : 'Proxy'}\n`));
+      } else {
+        transport = await promptTransportType();
+        console.log(theme.green(`${icons.success} Selected: ${transport === 'http' ? 'Direct' : 'Proxy'}\n`));
+      }
 
       // Step 6: Project Selection
       console.log(theme.gray('Step 6: Select a Google Cloud project\n'));
@@ -145,7 +159,7 @@ export class InitHandler implements InitCommand {
       if (activeProjectId) {
         const detailsResult = await this.projectService.getProjectDetails({ projectId: activeProjectId });
         if (detailsResult.success) {
-          const useActive = await promptConfirm(
+          const useActive = input.defaults ? true : await promptConfirm(
             `Use active project: ${detailsResult.data.name} (${detailsResult.data.projectId})?`,
             true
           );
@@ -174,11 +188,7 @@ export class InitHandler implements InitCommand {
         };
       }
 
-      console.log(
-        theme.green(
-          `\n${icons.success} Selected project: ${projectResult.data.name} (${projectResult.data.projectId})\n`
-        )
-      );
+
 
       // Step 6: Set Active Project
       spinner.start('Configuring project...');
@@ -308,7 +318,7 @@ export class InitHandler implements InitCommand {
       // Step 10: Generate MCP Config
       // Special setup for Gemini CLI
       if (mcpClient === 'gemini-cli') {
-        await this.setupGeminiExtension(projectResult.data.projectId);
+        await this.setupGeminiExtension(projectResult.data.projectId, transport);
       }
 
       console.log(`\n${theme.gray('Step 8: Generating MCP Configuration')}\n`);
@@ -387,34 +397,61 @@ export class InitHandler implements InitCommand {
     }
   }
 
-  private async setupGeminiExtension(projectId: string): Promise<void> {
-    const spinner = createSpinner();
-    console.log(theme.gray('  > gemini extensions install https://github.com/gemini-cli-extensions/stitch'));
+  private resolveMcpClient(input: string): McpClient {
+    const map: Record<string, McpClient> = {
+      'antigravity': 'antigravity', 'agy': 'antigravity',
+      'vscode': 'vscode', 'vsc': 'vscode',
+      'cursor': 'cursor', 'cur': 'cursor',
+      'claude-code': 'claude-code', 'cc': 'claude-code',
+      'gemini-cli': 'gemini-cli', 'gcli': 'gemini-cli'
+    };
 
-    const shouldInstall = await promptConfirm(
-      'Run this command?',
-      true
-    );
-
-    if (!shouldInstall) {
-      return;
+    const normalized = input.trim().toLowerCase();
+    const client = map[normalized];
+    if (!client) {
+      throw new Error(`Invalid client '${input}'. Supported: antigravity (agy), vscode (vsc), cursor (cur), claude-code (cc), gemini-cli (gcli)`);
     }
+    return client;
+  }
 
-    spinner.start('Installing Stitch extension...');
+  private resolveTransport(input: string): 'http' | 'stdio' {
+    const normalized = input.trim().toLowerCase();
+    if (normalized === 'http') return 'http';
+    if (normalized === 'stdio') return 'stdio';
+    throw new Error(`Invalid transport '${input}'. Supported: http, stdio`);
+  }
 
-    const installResult = await execCommand(['gemini', 'extensions', 'install', 'https://github.com/gemini-cli-extensions/stitch']);
+  private async setupGeminiExtension(projectId: string, transport: 'http' | 'stdio'): Promise<void> {
+    const spinner = createSpinner();
+    const extensionPath = path.join(os.homedir(), '.gemini', 'extensions', 'Stitch', 'gemini-extension.json');
+    const isInstalled = fs.existsSync(extensionPath);
 
-    if (!installResult.success) {
-      spinner.fail('Failed to install Stitch extension');
-      console.log(theme.red(`  Error: ${installResult.stderr || installResult.error}`));
-      console.log(theme.gray('  Attempting to configure existing extension...'));
+    if (isInstalled) {
+      spinner.succeed('Stitch extension is already installed');
     } else {
-      spinner.succeed('Extension installed');
+      console.log(theme.gray('  > gemini extensions install https://github.com/gemini-cli-extensions/stitch'));
+
+      const shouldInstall = await promptConfirm(
+        'Run this command?',
+        true
+      );
+
+      if (shouldInstall) {
+        spinner.start('Installing Stitch extension...');
+
+        const installResult = await execCommand(['gemini', 'extensions', 'install', 'https://github.com/gemini-cli-extensions/stitch']);
+
+        if (!installResult.success) {
+          spinner.fail('Failed to install Stitch extension');
+          console.log(theme.red(`  Error: ${installResult.stderr || installResult.error}`));
+          console.log(theme.gray('  Attempting to configure existing extension...'));
+        } else {
+          spinner.succeed('Extension installed');
+        }
+      }
     }
 
     spinner.start('Configuring extension...');
-
-    const extensionPath = path.join(os.homedir(), '.gemini', 'extensions', 'Stitch', 'gemini-extension.json');
 
     if (!fs.existsSync(extensionPath)) {
       spinner.fail('Extension configuration file not found');
@@ -426,15 +463,39 @@ export class InitHandler implements InitCommand {
       const content = fs.readFileSync(extensionPath, 'utf8');
       const config = JSON.parse(content);
 
-      // Update project ID in headers
-      if (config.mcpServers?.stitch?.headers) {
-        config.mcpServers.stitch.headers['X-Goog-User-Project'] = projectId;
-        fs.writeFileSync(extensionPath, JSON.stringify(config, null, 4));
-        spinner.succeed(`Stitch extension configured: Project ID set to ${theme.blue(projectId)}`);
-        console.log(theme.gray(`  File: ${extensionPath}`));
-      } else {
-        spinner.fail('Invalid extension configuration format');
+      if (!config.mcpServers?.stitch) {
+        spinner.fail('Invalid extension configuration format detected');
+        return;
       }
+
+      if (transport === 'stdio') {
+        config.mcpServers.stitch = {
+          command: 'npx',
+          args: ['@_davideast/stitch-mcp', 'proxy'],
+          env: {
+            STITCH_PROJECT_ID: projectId,
+            PATH: process.env.PATH || '',
+          },
+        };
+
+        fs.writeFileSync(extensionPath, JSON.stringify(config, null, 4));
+        spinner.succeed(`Stitch extension configured for STDIO: Project ID set to ${theme.blue(projectId)}`);
+      } else {
+        // HTTP
+        const existingHeaders = config.mcpServers.stitch.headers || {};
+        config.mcpServers.stitch = {
+          url: 'https://stitch.googleapis.com/mcp',
+          headers: {
+            'Authorization': 'Bearer $STITCH_ACCESS_TOKEN',
+            ...existingHeaders,
+            'X-Goog-User-Project': projectId,
+          },
+        };
+        fs.writeFileSync(extensionPath, JSON.stringify(config, null, 4));
+        spinner.succeed(`Stitch extension configured for HTTP: Project ID set to ${theme.blue(projectId)}`);
+      }
+
+      console.log(theme.gray(`  File: ${extensionPath}`));
 
     } catch (e) {
       spinner.fail('Failed to update extension configuration');
