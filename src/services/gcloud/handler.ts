@@ -621,6 +621,8 @@ export class GcloudHandler implements GcloudService {
 
   async getActiveAccount(): Promise<string | null> {
     const gcloudCmd = this.getGcloudCommand();
+
+    // Only check bundled stitch config - we need credentials there
     const result = await execCommand(
       [gcloudCmd, 'auth', 'list', '--filter=status:ACTIVE', '--format=value(account)'],
       { env: this.getEnvironment() }
@@ -634,8 +636,9 @@ export class GcloudHandler implements GcloudService {
   }
 
   async hasADC(): Promise<boolean> {
-    const configPath = getGcloudConfigPath();
-    const adcPath = joinPath(configPath, 'application_default_credentials.json');
-    return fs.existsSync(adcPath);
+    // Only check bundled stitch config path - we need ADC there for getAccessToken
+    const stitchConfigPath = getGcloudConfigPath();
+    const stitchAdcPath = joinPath(stitchConfigPath, 'application_default_credentials.json');
+    return fs.existsSync(stitchAdcPath);
   }
 }
