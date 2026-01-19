@@ -107,19 +107,29 @@ export class InitHandler implements InitCommand {
         console.log(theme.gray('  If browser auth fails, copy the URL from terminal and open manually.\n'));
       }
 
+      // Config path for commands to save to bundled location
+      const configPath = path.dirname(gcloudBinDir) + '/../config';
+      const configPrefix = `CLOUDSDK_CONFIG="${configPath}"`;
+
       // User auth step
       authSteps.push({
         id: 'user-auth',
         title: 'Authenticate with Google Cloud',
-        command: 'gcloud auth login',
-        verifyCommand: [gcloudPath, 'auth', 'list', '--filter=status:ACTIVE', '--format=value(account)'],
+        command: `${configPrefix} gcloud auth login`,
+        verifyFn: async () => {
+          const account = await this.gcloudService.getActiveAccount();
+          return {
+            success: !!account,
+            message: account ? `Logged in as ${account}` : 'No account found',
+          };
+        },
       });
 
       // ADC step
       authSteps.push({
         id: 'adc',
         title: 'Authorize Application Default Credentials',
-        command: 'gcloud auth application-default login',
+        command: `${configPrefix} gcloud auth application-default login`,
         verifyFn: async () => {
           const hasADC = await this.gcloudService.hasADC();
           return {

@@ -105,9 +105,10 @@ async function runVerification(
         message: result.stdout.trim().split('\n')[0],
       };
     }
+    // Command failed OR returned empty output (e.g., no accounts found)
     return {
-      success: result.success,
-      message: result.stderr || 'Verification failed',
+      success: false,
+      message: result.stderr?.trim() || 'Not configured',
     };
   }
 
