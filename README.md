@@ -19,12 +19,55 @@ npx @_davideast/stitch-mcp init
 
 This single command will:
 1. Install Google Cloud CLI (if needed)
-2. Authenticate you with Google
+2. Guide you through authentication with gcloud commands
 3. Set up application credentials
 4. Select a GCP project
 5. Configure IAM permissions
 6. Enable Stitch API
 7. Generate MCP configuration for your client
+
+**Example session:**
+```
+Stitch MCP Setup
+
+Step 1: Select your MCP client
+✔ Which MCP client are you using? Antigravity
+
+Step 2: Setting up Google Cloud CLI
+✔ Google Cloud CLI ready (bundled): v552.0.0
+
+Step 3: Setup Authentication
+✔ Check your current setup status? Yes
+
+Authenticate with Google Cloud
+
+  CLOUDSDK_CONFIG="~/.stitch-mcp/config" gcloud auth login
+
+  (copied to clipboard)
+✔ Press Enter when complete Yes
+✔ Logged in as you@gmail.com
+
+Authorize Application Default Credentials
+
+  CLOUDSDK_CONFIG="~/.stitch-mcp/config" gcloud auth application-default login
+
+  (copied to clipboard)
+✔ Press Enter when complete Yes
+✔ ADC configured
+
+Step 4: Select a Google Cloud project
+✔ Select a project: My Project (my-project-id)
+
+Step 5: Configure IAM Permissions
+✔ Required IAM role is already configured.
+
+Step 6: Generating MCP Configuration
+✔ Configuration generated
+
+Setup Complete! ✔
+```
+
+**How it works:** Commands are displayed and automatically copied to your clipboard. Run the command in your terminal, complete the OAuth flow in your browser, then press Enter to continue.
 
 **Example output:**
 ```json
@@ -95,7 +138,7 @@ npx @_davideast/stitch-mcp init [options]
 
 **Options:**
 - `--local` - Install gcloud locally to project instead of user home
-- `-y, --defaults` - Use default values for all prompts
+- `-y, --yes` - Auto-approve verification prompts (skips "Check your current setup status?")
 - `-c, --client <client>` - Specify MCP client (antigravity, vscode, cursor, claude-code, gemini-cli)
 - `-t, --transport <type>` - Transport type (http or stdio)
 
@@ -175,13 +218,33 @@ Two authentication flows are required for Stitch MCP server access:
 1. **User Auth** (`gcloud auth login`)
    - Identifies you to Google Cloud
    - Opens browser for OAuth flow
-   - **URL always printed to terminal** for manual copy-paste if browser fails
 
 2. **Application Default Credentials** (`gcloud auth application-default login`)
    - Allows MCP server to make API calls on your behalf
    - Separate OAuth flow with API-level permissions
 
-Both authentication URLs are automatically printed to your terminal, so you can always complete authentication manually if the browser doesn't open.
+The CLI presents these as a guided checklist. You run the commands yourself, then the CLI verifies completion:
+
+```
+Authenticate with Google Cloud
+
+  CLOUDSDK_CONFIG="~/.stitch-mcp/config" gcloud auth login
+
+  (copied to clipboard)
+✔ Press Enter when complete Yes
+✔ Logged in as you@gmail.com
+```
+
+#### WSL / SSH / Docker Environments
+
+The CLI automatically detects WSL, SSH sessions, Docker containers, and Cloud Shell. In these environments, browser-based auth may not work automatically. The CLI shows guidance:
+
+```
+⚠ WSL detected - browser redirect to localhost may not work
+  If browser auth fails, copy the URL from terminal and open manually.
+```
+
+Simply copy the OAuth URL from your terminal and paste it into your browser to complete authentication.
 
 #### Transport Options
 

@@ -8,11 +8,11 @@ mock.module('../../ui/wizard.js', () => ({
   promptTransportType: mock(() => Promise.resolve('http')),
 }));
 
-const mockSpinner = {
-  start: mock(function () { return this; }),
-  succeed: mock(function () { return this; }),
-  fail: mock(function () { return this; }),
-  stop: mock(function () { return this; }),
+const mockSpinner: Record<string, unknown> = {
+  start: mock(() => mockSpinner),
+  succeed: mock(() => mockSpinner),
+  fail: mock(() => mockSpinner),
+  stop: mock(() => mockSpinner),
 };
 mock.module('../../ui/spinner.js', () => ({
   createSpinner: mock(() => mockSpinner),
@@ -80,7 +80,7 @@ describe('InitHandler', () => {
       mockProjectService,
       mockStitchService
     );
-    const result = await handler.execute({ local: false, autoVerify: true });
+    const result = await handler.execute({ local: false, defaults: false, autoVerify: true });
 
     expect(result.success).toBe(true);
 
@@ -130,7 +130,7 @@ describe('InitHandler', () => {
       mockProjectService,
       mockStitchService
     );
-    await handler.execute({ local: false, autoVerify: true });
+    await handler.execute({ local: false, defaults: false, autoVerify: true });
 
     // IAM and API should not be called since they're already configured
     expect(mockStitchService.configureIAM).not.toHaveBeenCalled();
@@ -169,7 +169,7 @@ describe('InitHandler', () => {
       mockProjectService,
       mockStitchService
     );
-    const result = await handler.execute({ local: false, autoVerify: true });
+    const result = await handler.execute({ local: false, defaults: false, autoVerify: true });
 
     expect(result.success).toBe(false);
     if (!result.success) {
