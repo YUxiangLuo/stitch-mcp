@@ -228,7 +228,7 @@ export class InitHandler implements InitCommand {
       if (activeProjectId) {
         const detailsResult = await this.projectService.getProjectDetails({ projectId: activeProjectId });
         if (detailsResult.success) {
-          const useActive = input.defaults ? true : await promptConfirm(
+          const useActive = (input.defaults || input.autoVerify) ? true : await promptConfirm(
             `Use active project: ${detailsResult.data.name} (${detailsResult.data.projectId})?`,
             true
           );
