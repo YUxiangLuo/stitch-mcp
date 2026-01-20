@@ -108,8 +108,11 @@ export class InitHandler implements InitCommand {
       }
 
       // Config path for commands to save to bundled location
-      const configPath = path.dirname(gcloudBinDir) + '/../config';
-      const configPrefix = `CLOUDSDK_CONFIG="${configPath}"`;
+      let configPrefix = '';
+      if (isBundled) {
+        const configPath = path.dirname(gcloudBinDir) + '/../config';
+        configPrefix = `CLOUDSDK_CONFIG="${configPath}"`;
+      }
 
       // User auth step
       authSteps.push({
