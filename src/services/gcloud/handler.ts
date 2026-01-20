@@ -620,6 +620,11 @@ export class GcloudHandler implements GcloudService {
       return this.gcloudPath;
     }
 
+    // If configured to use system gcloud, prefer PATH lookup
+    if (this.useSystemGcloud || process.env.STITCH_USE_SYSTEM_GCLOUD) {
+      return this.platform.gcloudBinaryName;
+    }
+
     // Check if local SDK exists
     const localSdkPath = getGcloudSdkPath();
     const localBinaryPath = joinPath(localSdkPath, 'bin', this.platform.gcloudBinaryName);
