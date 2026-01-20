@@ -159,7 +159,10 @@ export class Checklist {
       }
 
       // Wait for user to complete the step
-      const completed = await waitForCompletion();
+      let completed = true;
+      if (!options.autoVerify) {
+        completed = await waitForCompletion();
+      }
 
       if (!completed) {
         return {

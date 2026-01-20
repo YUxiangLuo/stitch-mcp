@@ -85,4 +85,27 @@ describe('Checklist', () => {
       expect(results.get('step2')?.success).toBe(false);
     });
   });
+
+  describe('Checklist.run', () => {
+    test('should skip completion prompt when autoVerify is true', async () => {
+      // Mock confirm to fail if called (ensuring it's skipped)
+      mock.module('@inquirer/prompts', () => ({
+        confirm: mock(() => Promise.reject(new Error('Should not be called'))),
+      }));
+
+      const { createChecklist } = await import('./checklist');
+      const checklist = createChecklist();
+
+      const steps: ChecklistStep[] = [{
+        id: 'auto-step',
+        title: 'Auto Step',
+        command: 'echo "test"',
+      }];
+
+      const result = await checklist.run(steps, { autoVerify: true });
+
+      expect(result.success).toBe(true);
+      expect(result.completedSteps).toContain('auto-step');
+    });
+  });
 });
