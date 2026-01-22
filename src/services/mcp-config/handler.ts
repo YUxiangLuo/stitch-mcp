@@ -81,7 +81,7 @@ export class McpConfigHandler implements McpConfigService {
     };
   }
 
-  private generateVSCodeConfig(projectId?: string) {
+  private generateVSCodeConfig(projectId: string) {
     return {
       inputs: [
         {
@@ -97,7 +97,7 @@ export class McpConfigHandler implements McpConfigService {
           url: 'https://stitch.googleapis.com/mcp',
           headers: {
             'Authorization': 'Bearer ${input:stitch-access-token}',
-            'X-Goog-User-Project': projectId || '${input:stitch-project-id}',
+            'X-Goog-User-Project': projectId,
           },
         },
       },
