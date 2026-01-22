@@ -227,7 +227,7 @@ export class McpConfigHandler implements McpConfigService {
           );
         } else {
           return (
-            transportNote +
+            tokenHint +
             `\n${theme.green('Setup Claude Code:')}\n\n` +
             `Run the following command to add the Stitch MCP server:\n\n` +
             `${theme.blue('claude mcp add stitch \\')}\n` +
